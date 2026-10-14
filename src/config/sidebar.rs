@@ -475,11 +475,23 @@ impl Default for SpacesSidebarConfig {
     }
 }
 
+/// A user-declared sidebar section whose rows are plain text lines. Rows render in declaration
+/// order below the agents section. Later slices populate these from the socket API; for now they
+/// render whatever the config declares.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct GenericSidebarSection {
+    pub title: String,
+    pub rows: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct SidebarConfig {
     pub agents: AgentsSidebarConfig,
     pub spaces: SpacesSidebarConfig,
+    /// Extra sections rendered below agents, in declaration order.
+    pub sections: Vec<GenericSidebarSection>,
 }
 
 #[cfg(test)]
