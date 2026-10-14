@@ -211,10 +211,21 @@ pub(crate) fn render_sidebar(
     } else {
         Rect::new(area.right().saturating_sub(1), area.y, 1, area.height)
     };
+    // Declared extra sections take a reserved band at the bottom. The spaces/agents split keeps
+    // the rest, so its geometry, divider, and hit-testing are unchanged when no section is set.
+    let sections_height = config
+        .sections
+        .iter()
+        .filter(|section| !section.rows.is_empty())
+        .map(|section| {
+            1u16.saturating_add(u16::try_from(section.rows.len()).unwrap_or(u16::MAX))
+        })
+        .sum::<u16>();
+    let (top_area, sections_area) = crate::ui::split_off_bottom(area, sections_height);
     let (workspace_area, detail_area) =
-        crate::ui::expanded_sidebar_sections(area, state.sidebar_section_split);
+        crate::ui::expanded_sidebar_sections(top_area, state.sidebar_section_split);
     hits.sidebar_section_divider =
-        crate::ui::sidebar_section_divider_rect(area, state.sidebar_section_split);
+        crate::ui::sidebar_section_divider_rect(top_area, state.sidebar_section_split);
     put_text(
         buffer,
         workspace_area.x,
@@ -438,6 +449,41 @@ pub(crate) fn render_sidebar(
         state.agent_scroll,
         hits,
     );
+
+    if !sections_area.is_empty() {
+        let row_width = sections_area.width.saturating_sub(1) as usize;
+        let mut y = sections_area.y;
+        'sections: for section in config.sections.iter().filter(|s| !s.rows.is_empty()) {
+            if y >= sections_area.bottom() {
+                break;
+            }
+            put_text(
+                buffer,
+                sections_area.x,
+                y,
+                sections_area.width,
+                &format!(" {}", section.title),
+                Style::default()
+                    .fg(palette.overlay0)
+                    .add_modifier(Modifier::BOLD),
+            );
+            y = y.saturating_add(1);
+            for row in &section.rows {
+                if y >= sections_area.bottom() {
+                    break 'sections;
+                }
+                put_text(
+                    buffer,
+                    sections_area.x,
+                    y,
+                    sections_area.width,
+                    &crate::ui::truncate_end(row, row_width),
+                    Style::default().fg(palette.text),
+                );
+                y = y.saturating_add(1);
+            }
+        }
+    }
 
     hits.sidebar_toggle = Rect::new(
         area.right().saturating_sub(2),

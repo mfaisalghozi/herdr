@@ -65,6 +65,19 @@ pub(crate) fn expanded_sidebar_sections(area: Rect, split_ratio: f32) -> (Rect, 
     )
 }
 
+/// Reserves a bottom band of `height` rows for extra sidebar sections, returning
+/// `(remaining_top, band)`. Keeps at least 6 rows for the spaces/agents split and never
+/// returns a band taller than the area.
+pub(crate) fn split_off_bottom(area: Rect, height: u16) -> (Rect, Rect) {
+    let carve = height.min(area.height.saturating_sub(6));
+    if carve == 0 {
+        return (area, Rect::default());
+    }
+    let top = Rect::new(area.x, area.y, area.width, area.height - carve);
+    let band = Rect::new(area.x, area.y + area.height - carve, area.width, carve);
+    (top, band)
+}
+
 pub(crate) fn sidebar_section_divider_rect(area: Rect, split_ratio: f32) -> Rect {
     let content = Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height);
     if content.width == 0 || content.height < 6 {
