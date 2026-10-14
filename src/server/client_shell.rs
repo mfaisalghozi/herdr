@@ -262,6 +262,16 @@ pub(super) fn snapshot_with_completions(
         tabs,
         panes,
         agents,
+        sections: app
+            .state
+            .reported_sections
+            .iter()
+            .map(|section| protocol::ClientShellSection {
+                id: section.id.clone(),
+                title: section.title.clone(),
+                rows: section.rows.clone(),
+            })
+            .collect(),
         commands: app.client_shell_command_manifest(),
     };
     (shell, completions)

@@ -947,7 +947,18 @@ pub struct ClientShellSnapshot {
     pub tabs: Vec<ClientShellTab>,
     pub panes: Vec<ClientShellPane>,
     pub agents: Vec<ClientShellAgent>,
+    /// Sections reported via `section.report`, rendered below the agents section.
+    #[serde(default)]
+    pub sections: Vec<ClientShellSection>,
     pub commands: Vec<ClientShellCommand>,
+}
+
+/// One externally reported sidebar section. Rows are plain text lines.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClientShellSection {
+    pub id: String,
+    pub title: String,
+    pub rows: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2788,6 +2799,7 @@ mod tests {
         let msg = ServerMessage::ClientShellSnapshot(Box::new(ClientShellSnapshot {
             boot_id: "boot-1".into(),
             revision: 1,
+            sections: Vec::new(),
             config_diagnostic: Some("endpoint config warning".into()),
             product_announcement: Some(ClientShellProductAnnouncement {
                 version: "0.8.2".into(),

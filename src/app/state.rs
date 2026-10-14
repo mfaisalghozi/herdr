@@ -806,6 +806,8 @@ pub struct AppState {
     /// Latest endpoint-owned release notes, cached outside render paths.
     pub latest_release_notes: Option<crate::release_notes::ReleaseNotes>,
     pub product_announcement: Option<ProductAnnouncementState>,
+    /// Sidebar sections reported by external processes via `section.report`.
+    pub reported_sections: Vec<crate::api::schema::SectionReportParams>,
     // Geometry of the most recently computed server pane surface.
     pub view: ViewState,
     // Notifications
@@ -1046,6 +1048,7 @@ impl AppState {
             mode: Mode::Navigate,
             should_quit: false,
             request_client_config_reload: false,
+            reported_sections: Vec::new(),
             worktree_directory: std::path::PathBuf::from("/tmp/herdr-worktrees"),
             latest_release_notes: None,
             product_announcement: None,

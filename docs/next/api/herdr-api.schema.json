@@ -3856,6 +3856,32 @@
           ],
           "type": "object"
         },
+        "SectionReportParams": {
+          "description": "Params for `section.report`: replace the contents of one reported sidebar section.",
+          "properties": {
+            "id": {
+              "description": "Stable section identity; a later report with the same id replaces this one.",
+              "type": "string"
+            },
+            "rows": {
+              "default": [],
+              "description": "Row lines rendered top to bottom.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": {
+              "default": "",
+              "description": "Header text rendered above the rows.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
         "ServerLiveHandoffParams": {
           "properties": {
             "expected_protocol": {
@@ -5041,6 +5067,22 @@
             },
             "params": {
               "$ref": "#/schemas/request/$defs/WorkspaceReportMetadataParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "section.report",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/SectionReportParams"
             }
           },
           "required": [
