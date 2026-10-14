@@ -46,6 +46,7 @@ fn test_snapshot(boot_id: &str, revision: u64) -> crate::protocol::ClientShellSn
     crate::protocol::ClientShellSnapshot {
         boot_id: boot_id.into(),
         revision,
+        sections: Vec::new(),
         config_diagnostic: None,
         product_announcement: None,
         update_available: None,
@@ -412,6 +413,7 @@ fn activation_requires_an_exact_snapshot_surface_revision_pair() {
     let snapshot = crate::protocol::ClientShellSnapshot {
         boot_id: "remote-boot".into(),
         revision: 2,
+        sections: Vec::new(),
         config_diagnostic: None,
         product_announcement: None,
         update_available: None,

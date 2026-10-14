@@ -226,6 +226,7 @@ mod tests {
         ClientShellSnapshot {
             boot_id: "boot".into(),
             revision: 1,
+            sections: Vec::new(),
             config_diagnostic: None,
             product_announcement: None,
             update_available: None,

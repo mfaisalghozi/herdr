@@ -7,6 +7,7 @@ mod integrations;
 mod layouts;
 mod panes;
 pub(crate) mod plugins;
+mod sections;
 pub(super) mod responses;
 mod session;
 mod tabs;
@@ -1194,6 +1195,9 @@ impl App {
             }
             Method::PaneReportMetadata(params) => {
                 return self.handle_pane_report_metadata(request.id, params);
+            }
+            Method::SectionReport(params) => {
+                return self.handle_section_report(request.id, params);
             }
             Method::PaneClearAgentAuthority(params) => {
                 return self.handle_pane_clear_agent_authority(request.id, params);

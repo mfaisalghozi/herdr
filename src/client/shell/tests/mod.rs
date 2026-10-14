@@ -11,6 +11,7 @@ pub(super) fn snapshot() -> ClientShellSnapshot {
     ClientShellSnapshot {
         boot_id: "boot-1".into(),
         revision: 1,
+        sections: Vec::new(),
         config_diagnostic: None,
         product_announcement: None,
         update_available: None,

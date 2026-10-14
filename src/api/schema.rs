@@ -8,6 +8,7 @@ pub mod integrations;
 pub mod panes;
 pub mod plugins;
 pub mod response;
+pub mod sections;
 pub mod server;
 pub mod session;
 pub mod tabs;
@@ -22,6 +23,7 @@ pub use integrations::*;
 pub use panes::*;
 pub use plugins::*;
 pub use response::*;
+pub use sections::*;
 pub use server::*;
 pub use session::*;
 pub use tabs::*;
@@ -91,6 +93,8 @@ pub enum Method {
     WorkspaceMoveBlock(WorkspaceMoveBlockParams),
     #[serde(rename = "workspace.report_metadata")]
     WorkspaceReportMetadata(WorkspaceReportMetadataParams),
+    #[serde(rename = "section.report")]
+    SectionReport(SectionReportParams),
     #[serde(rename = "workspace.close")]
     WorkspaceClose(WorkspaceCloseParams),
     #[serde(rename = "worktree.list")]

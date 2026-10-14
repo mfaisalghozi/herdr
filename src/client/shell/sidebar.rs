@@ -211,15 +211,23 @@ pub(crate) fn render_sidebar(
     } else {
         Rect::new(area.right().saturating_sub(1), area.y, 1, area.height)
     };
-    // Declared extra sections take a reserved band at the bottom. The spaces/agents split keeps
-    // the rest, so its geometry, divider, and hit-testing are unchanged when no section is set.
-    let sections_height = config
-        .sections
+    // Config-declared and externally reported sections share one reserved band at the bottom;
+    // the spaces/agents split keeps the rest, so its geometry, divider, and hit-testing are
+    // unchanged when no section is configured or reported.
+    let mut extra_sections: Vec<(&str, &[String])> = Vec::new();
+    for section in &config.sections {
+        if !section.rows.is_empty() {
+            extra_sections.push((section.title.as_str(), section.rows.as_slice()));
+        }
+    }
+    for section in &snapshot.sections {
+        if !section.rows.is_empty() {
+            extra_sections.push((section.title.as_str(), section.rows.as_slice()));
+        }
+    }
+    let sections_height = extra_sections
         .iter()
-        .filter(|section| !section.rows.is_empty())
-        .map(|section| {
-            1u16.saturating_add(u16::try_from(section.rows.len()).unwrap_or(u16::MAX))
-        })
+        .map(|(_, rows)| 1u16.saturating_add(u16::try_from(rows.len()).unwrap_or(u16::MAX)))
         .sum::<u16>();
     let (top_area, sections_area) = crate::ui::split_off_bottom(area, sections_height);
     let (workspace_area, detail_area) =
@@ -453,7 +461,7 @@ pub(crate) fn render_sidebar(
     if !sections_area.is_empty() {
         let row_width = sections_area.width.saturating_sub(1) as usize;
         let mut y = sections_area.y;
-        'sections: for section in config.sections.iter().filter(|s| !s.rows.is_empty()) {
+        'sections: for (title, rows) in &extra_sections {
             if y >= sections_area.bottom() {
                 break;
             }
@@ -462,13 +470,13 @@ pub(crate) fn render_sidebar(
                 sections_area.x,
                 y,
                 sections_area.width,
-                &format!(" {}", section.title),
+                &format!(" {title}"),
                 Style::default()
                     .fg(palette.overlay0)
                     .add_modifier(Modifier::BOLD),
             );
             y = y.saturating_add(1);
-            for row in &section.rows {
+            for row in rows.iter() {
                 if y >= sections_area.bottom() {
                     break 'sections;
                 }

@@ -503,6 +503,7 @@ impl App {
             mode,
             should_quit: false,
             request_client_config_reload: false,
+            reported_sections: Vec::new(),
             worktree_directory,
             latest_release_notes,
             product_announcement: startup_product_announcement.map(|announcement| {
