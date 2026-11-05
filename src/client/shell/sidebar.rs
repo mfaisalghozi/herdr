@@ -234,11 +234,25 @@ pub(crate) fn render_sidebar(
         .iter()
         .map(|(_, rows, _)| 1u16.saturating_add(u16::try_from(rows.len()).unwrap_or(u16::MAX)))
         .sum::<u16>();
-    let (top_area, sections_area) = crate::ui::split_off_bottom(area, sections_height);
-    let (workspace_area, detail_area) =
-        crate::ui::expanded_sidebar_sections(top_area, state.sidebar_section_split);
+    let sections_budget = sections_height.min(area.height.saturating_sub(6));
+    // Keep the spaces/agents divider where it is, but let the agent panel own the
+    // bottom band too. The servers section then starts right after the agent rows.
+    let split_area = Rect::new(
+        area.x,
+        area.y,
+        area.width,
+        area.height.saturating_sub(sections_budget),
+    );
+    let (workspace_area, _) =
+        crate::ui::expanded_sidebar_sections(split_area, state.sidebar_section_split);
+    let detail_area = Rect::new(
+        workspace_area.x,
+        workspace_area.bottom(),
+        workspace_area.width,
+        area.bottom().saturating_sub(workspace_area.bottom()),
+    );
     hits.sidebar_section_divider =
-        crate::ui::sidebar_section_divider_rect(top_area, state.sidebar_section_split);
+        crate::ui::sidebar_section_divider_rect(split_area, state.sidebar_section_split);
     put_text(
         buffer,
         workspace_area.x,
@@ -454,13 +468,29 @@ pub(crate) fn render_sidebar(
         }
     }
 
+    let agent_content_height = super::agent_sidebar::agent_panel_content_height(snapshot, config);
+    let agent_body_capacity = detail_area.height.saturating_sub(3);
+    let agent_body_height =
+        agent_content_height.min(agent_body_capacity.saturating_sub(sections_budget));
+    let agent_area = Rect::new(
+        detail_area.x,
+        detail_area.y,
+        detail_area.width,
+        3u16.saturating_add(agent_body_height).min(detail_area.height),
+    );
     super::render_agent_panel(
         buffer,
-        detail_area,
+        agent_area,
         snapshot,
         config,
         state.agent_scroll,
         hits,
+    );
+    let sections_area = Rect::new(
+        detail_area.x,
+        agent_area.bottom(),
+        area.width,
+        sections_height.min(area.bottom().saturating_sub(agent_area.bottom())),
     );
 
     if !sections_area.is_empty() {

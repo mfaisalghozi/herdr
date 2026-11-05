@@ -245,6 +245,22 @@ pub(super) fn agent_rows(
         .collect()
 }
 
+/// Full height of the agent rows, before the viewport clips them.
+pub(super) fn agent_panel_content_height(
+    snapshot: &ClientShellSnapshot,
+    config: &ClientShellConfig,
+) -> u16 {
+    let rows = agent_rows(snapshot, config, None);
+    let mut height = 0u16;
+    for (index, row) in rows.iter().enumerate() {
+        height = height.saturating_add(row.rows.len().max(1).min(u16::MAX as usize) as u16);
+        if index + 1 < rows.len() {
+            height = height.saturating_add(config.agents.row_gap);
+        }
+    }
+    height
+}
+
 pub(super) fn agent_row(
     snapshot: &ClientShellSnapshot,
     pane_id: &str,
