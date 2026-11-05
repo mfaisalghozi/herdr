@@ -272,6 +272,20 @@ pub(super) fn snapshot_with_completions(
                 rows: section.rows.clone(),
                 row_workspaces: section.row_workspaces.clone(),
                 row_panes: section.row_panes.clone(),
+                row_actions: section
+                    .row_actions
+                    .iter()
+                    .map(|actions| {
+                        actions
+                            .iter()
+                            .map(|action| protocol::ClientShellSectionAction {
+                                token: action.token.clone(),
+                                workspace_id: action.workspace_id.clone(),
+                                pane_id: action.pane_id.clone(),
+                            })
+                            .collect()
+                    })
+                    .collect(),
             })
             .collect(),
         commands: app.client_shell_command_manifest(),

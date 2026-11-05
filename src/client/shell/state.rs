@@ -97,6 +97,8 @@ pub(super) struct ShellHitMap {
     pub(super) agents: Vec<(Rect, String)>,
     /// Clickable rows from reported sidebar sections.
     pub(super) section_rows: Vec<SectionRowHit>,
+    /// Clickable tokens inside reported sidebar section rows (e.g. one per port).
+    pub(super) section_row_actions: Vec<SectionRowActionHit>,
     pub(super) endpoint_agents: Vec<(Rect, ClientEndpointId, String)>,
     pub(super) agent_body: Rect,
     pub(super) agent_scrollbar: Rect,
@@ -244,6 +246,13 @@ pub(super) struct WorkspaceHit {
 
 #[derive(Clone)]
 pub(super) struct SectionRowHit {
+    pub(super) rect: Rect,
+    pub(super) workspace_id: Option<String>,
+    pub(super) pane_id: Option<String>,
+}
+
+#[derive(Debug)]
+pub(super) struct SectionRowActionHit {
     pub(super) rect: Rect,
     pub(super) workspace_id: Option<String>,
     pub(super) pane_id: Option<String>,

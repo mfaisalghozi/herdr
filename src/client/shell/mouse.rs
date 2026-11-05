@@ -2088,6 +2088,25 @@ impl ClientShellState {
                     outcome.repaint = true;
                     return;
                 }
+                let section_action_target = self
+                    .hits
+                    .section_row_actions
+                    .iter()
+                    .find(|hit| super::contains(hit.rect, point))
+                    .and_then(|hit| {
+                        hit.pane_id
+                            .clone()
+                            .map(ClientEndpointFocusTarget::Pane)
+                            .or_else(|| {
+                                hit.workspace_id
+                                    .clone()
+                                    .map(ClientEndpointFocusTarget::Workspace)
+                            })
+                    });
+                if let Some(target) = section_action_target {
+                    self.focus_or_activate(ClientEndpointId::Local, target, outcome);
+                    return;
+                }
                 let section_target = self
                     .hits
                     .section_rows

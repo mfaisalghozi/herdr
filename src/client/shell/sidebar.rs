@@ -1,3 +1,4 @@
+use super::render::display_width;
 use super::*;
 use ratatui::{
     text::Line,
@@ -207,6 +208,7 @@ pub(crate) fn render_sidebar(
     let palette = &config.palette;
     render_sidebar_background(buffer, area, palette);
     hits.section_rows.clear();
+    hits.section_row_actions.clear();
     hits.sidebar_divider = if area.is_empty() {
         Rect::default()
     } else {
@@ -219,12 +221,14 @@ pub(crate) fn render_sidebar(
         &[String],
         &[Option<String>],
         &[Option<String>],
+        &[Vec<crate::protocol::ClientShellSectionAction>],
     )> = Vec::new();
     for section in &config.sections {
         if !section.rows.is_empty() {
             extra_sections.push((
                 section.title.as_str(),
                 section.rows.as_slice(),
+                &[],
                 &[],
                 &[],
             ));
@@ -237,12 +241,13 @@ pub(crate) fn render_sidebar(
                 section.rows.as_slice(),
                 section.row_workspaces.as_slice(),
                 section.row_panes.as_slice(),
+                section.row_actions.as_slice(),
             ));
         }
     }
     let sections_height = extra_sections
         .iter()
-        .map(|(_, rows, _, _)| {
+        .map(|(_, rows, _, _, _)| {
             2u16.saturating_add(
                 u16::try_from(rows.len())
                     .unwrap_or(u16::MAX)
@@ -512,7 +517,7 @@ pub(crate) fn render_sidebar(
     if !sections_area.is_empty() {
         let row_width = sections_area.width.saturating_sub(1);
         let mut y = sections_area.y;
-        'sections: for (title, rows, row_workspaces, row_panes) in &extra_sections {
+        'sections: for (title, rows, row_workspaces, row_panes, row_actions) in &extra_sections {
             if y >= sections_area.bottom() {
                 break;
             }
@@ -595,24 +600,27 @@ pub(crate) fn render_sidebar(
                 }
                 let circle_style = match background {
                     Some(background) => Style::default()
-                        .fg(if circle_active {
-                            palette.green
+                        .fg(palette.green)
+                        .bg(background)
+                        .add_modifier(if circle_active {
+                            Modifier::empty()
                         } else {
-                            palette.overlay0
-                        })
-                        .bg(background),
-                    None => Style::default().fg(if circle_active {
-                        palette.green
-                    } else {
-                        palette.overlay0
-                    }),
+                            Modifier::DIM
+                        }),
+                    None => Style::default()
+                        .fg(palette.green)
+                        .add_modifier(if circle_active {
+                            Modifier::empty()
+                        } else {
+                            Modifier::DIM
+                        }),
                 };
                 put_text(
                     buffer,
                     sections_area.x.saturating_add(1),
                     y,
                     1,
-                    if circle_active { "●" } else { "○" },
+                    "●",
                     circle_style,
                 );
                 let text_width = row_width.saturating_sub(3);
@@ -628,6 +636,39 @@ pub(crate) fn render_sidebar(
                     &crate::ui::truncate_end(row, text_width as usize),
                     text_style,
                 );
+                if let Some(actions) = row_actions.get(index) {
+                    for action in actions {
+                        let Some(offset) = row_token_offset(row, &action.token) else {
+                            continue;
+                        };
+                        let token_x = display_width(&row[..offset]);
+                        let token_width = display_width(&action.token);
+                        if token_x.saturating_add(token_width) > text_width {
+                            continue;
+                        }
+                        let x = sections_area
+                            .x
+                            .saturating_add(3)
+                            .saturating_add(token_x);
+                        let action_style = match background {
+                            Some(background) => Style::default()
+                                .fg(palette.blue)
+                                .bg(background)
+                                .add_modifier(Modifier::UNDERLINED),
+                            None => Style::default()
+                                .fg(palette.blue)
+                                .add_modifier(Modifier::UNDERLINED),
+                        };
+                        put_text(buffer, x, y, token_width, &action.token, action_style);
+                        if action.workspace_id.is_some() || action.pane_id.is_some() {
+                            hits.section_row_actions.push(SectionRowActionHit {
+                                rect: Rect::new(x, y, token_width, 1),
+                                workspace_id: action.workspace_id.clone(),
+                                pane_id: action.pane_id.clone(),
+                            });
+                        }
+                    }
+                }
                 if row_lines > 1 {
                     let label = workspace_id
                         .and_then(|workspace_id| {
@@ -672,6 +713,20 @@ pub(crate) fn render_sidebar(
         "«",
         Style::default().fg(palette.overlay0),
     );
+}
+
+/// Byte offset of `token` in `row`, matched only on whole-token boundaries so
+/// `8080` does not match inside `18080`.
+fn row_token_offset(row: &str, token: &str) -> Option<usize> {
+    if token.is_empty() {
+        return None;
+    }
+    row.match_indices(token).find_map(|(offset, _)| {
+        let before = row[..offset].chars().next_back();
+        let after = row[offset + token.len()..].chars().next();
+        let boundary = |c: Option<char>| c.map_or(true, |c| c.is_whitespace());
+        (boundary(before) && boundary(after)).then_some(offset)
+    })
 }
 
 pub(crate) fn workspace_entries(

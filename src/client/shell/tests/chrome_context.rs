@@ -537,6 +537,7 @@ fn clicking_a_reported_section_row_focuses_its_server_pane() {
         rows: vec!["8080  node".into()],
         row_workspaces: vec![Some("ws_1".into())],
         row_panes: vec![Some("pane_1".into())],
+        row_actions: Vec::new(),
     }];
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
     state.set_snapshot(Box::new(snap));
@@ -567,6 +568,49 @@ fn clicking_a_reported_section_row_focuses_its_server_pane() {
 }
 
 #[test]
+fn clicking_a_section_row_port_token_focuses_that_pane() {
+    let mut snap = snapshot();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        rows: vec!["8080 8082  node".into()],
+        row_workspaces: vec![Some("ws_1".into())],
+        row_panes: vec![Some("pane_1".into())],
+        row_actions: vec![vec![crate::protocol::ClientShellSectionAction {
+            token: "8082".into(),
+            workspace_id: Some("ws_1".into()),
+            pane_id: Some("pane_2".into()),
+        }]],
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    state.compose(106, 30).expect("sidebar with section row actions");
+
+    let rect = state
+        .hits
+        .section_row_actions
+        .first()
+        .expect("section row action hit")
+        .rect;
+    let outcome =
+        state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: rect.x,
+            row: rect.y,
+            modifiers: KeyModifiers::empty(),
+        })]);
+
+    let [ClientShellAction::Endpoint { request, .. }] = outcome.actions.as_slice() else {
+        panic!("port token click should focus that port's pane");
+    };
+    assert!(matches!(
+        &request.method,
+        crate::api::schema::Method::PaneFocus(target) if target.pane_id == "pane_2"
+    ));
+}
+
+#[test]
 fn reported_section_row_uses_active_workspace_background() {
     let mut snap = snapshot();
     snap.sections = vec![crate::protocol::ClientShellSection {
@@ -575,6 +619,7 @@ fn reported_section_row_uses_active_workspace_background() {
         rows: vec!["8080  node".into()],
         row_workspaces: vec![Some("ws_1".into())],
         row_panes: vec![Some("pane_1".into())],
+        row_actions: Vec::new(),
     }];
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
     state.set_snapshot(Box::new(snap));

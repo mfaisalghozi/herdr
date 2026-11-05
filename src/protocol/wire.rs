@@ -965,6 +965,19 @@ pub struct ClientShellSection {
     /// Optional pane id per row, parallel to `rows`.
     #[serde(default)]
     pub row_panes: Vec<Option<String>>,
+    /// Optional clickable token actions per row.
+    #[serde(default)]
+    pub row_actions: Vec<Vec<ClientShellSectionAction>>,
+}
+
+/// One clickable token within a reported sidebar row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClientShellSectionAction {
+    pub token: String,
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    #[serde(default)]
+    pub pane_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
