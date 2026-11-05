@@ -529,13 +529,14 @@ fn close_confirmation_error_becomes_client_owned_overlay_and_stable_workspace_cl
 }
 
 #[test]
-fn clicking_a_reported_section_row_focuses_its_workspace() {
+fn clicking_a_reported_section_row_focuses_its_server_pane() {
     let mut snap = snapshot();
     snap.sections = vec![crate::protocol::ClientShellSection {
         id: "servers".into(),
         title: "servers".into(),
         rows: vec!["8080  node".into()],
         row_workspaces: vec![Some("ws_1".into())],
+        row_panes: vec![Some("pane_1".into())],
     }];
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
     state.set_snapshot(Box::new(snap));
@@ -547,7 +548,7 @@ fn clicking_a_reported_section_row_focuses_its_workspace() {
         .section_rows
         .first()
         .expect("section row hit")
-        .0;
+        .rect;
     let outcome =
         state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
@@ -557,11 +558,11 @@ fn clicking_a_reported_section_row_focuses_its_workspace() {
         })]);
 
     let [ClientShellAction::Endpoint { request, .. }] = outcome.actions.as_slice() else {
-        panic!("section row click should focus the workspace");
+        panic!("section row click should focus the server pane");
     };
     assert!(matches!(
         &request.method,
-        crate::api::schema::Method::WorkspaceFocus(target) if target.workspace_id == "ws_1"
+        crate::api::schema::Method::PaneFocus(target) if target.pane_id == "pane_1"
     ));
 }
 
@@ -573,6 +574,7 @@ fn reported_section_row_uses_active_workspace_background() {
         title: "servers".into(),
         rows: vec!["8080  node".into()],
         row_workspaces: vec![Some("ws_1".into())],
+        row_panes: vec![Some("pane_1".into())],
     }];
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
     state.set_snapshot(Box::new(snap));
@@ -583,7 +585,7 @@ fn reported_section_row_uses_active_workspace_background() {
         .section_rows
         .first()
         .expect("section row hit")
-        .0;
+        .rect;
     let buffer = frame.to_ratatui_buffer().expect("section frame");
     assert_eq!(
         buffer[(rect.x, rect.y)].bg,

@@ -212,13 +212,22 @@ pub(crate) fn render_sidebar(
     } else {
         Rect::new(area.right().saturating_sub(1), area.y, 1, area.height)
     };
-    // Config-declared and externally reported sections share one reserved band at the bottom;
-    // the spaces/agents split keeps the rest, so its geometry, divider, and hit-testing are
-    // unchanged when no section is configured or reported.
-    let mut extra_sections: Vec<(&str, &[String], &[Option<String>])> = Vec::new();
+    // Config-declared and externally reported sections render directly below the agent
+    // rows. The spaces/agents divider keeps its position.
+    let mut extra_sections: Vec<(
+        &str,
+        &[String],
+        &[Option<String>],
+        &[Option<String>],
+    )> = Vec::new();
     for section in &config.sections {
         if !section.rows.is_empty() {
-            extra_sections.push((section.title.as_str(), section.rows.as_slice(), &[]));
+            extra_sections.push((
+                section.title.as_str(),
+                section.rows.as_slice(),
+                &[],
+                &[],
+            ));
         }
     }
     for section in &snapshot.sections {
@@ -227,12 +236,13 @@ pub(crate) fn render_sidebar(
                 section.title.as_str(),
                 section.rows.as_slice(),
                 section.row_workspaces.as_slice(),
+                section.row_panes.as_slice(),
             ));
         }
     }
     let sections_height = extra_sections
         .iter()
-        .map(|(_, rows, _)| {
+        .map(|(_, rows, _, _)| {
             1u16.saturating_add(
                 u16::try_from(rows.len())
                     .unwrap_or(u16::MAX)
@@ -502,7 +512,7 @@ pub(crate) fn render_sidebar(
     if !sections_area.is_empty() {
         let row_width = sections_area.width.saturating_sub(1);
         let mut y = sections_area.y;
-        'sections: for (title, rows, row_workspaces) in &extra_sections {
+        'sections: for (title, rows, row_workspaces, row_panes) in &extra_sections {
             if y >= sections_area.bottom() {
                 break;
             }
@@ -525,15 +535,22 @@ pub(crate) fn render_sidebar(
                     .get(index)
                     .and_then(|workspace_id| workspace_id.as_deref())
                     .filter(|workspace_id| !workspace_id.is_empty());
+                let pane_id = row_panes
+                    .get(index)
+                    .and_then(|pane_id| pane_id.as_deref())
+                    .filter(|pane_id| !pane_id.is_empty());
                 let row_lines = if y.saturating_add(1) < sections_area.bottom() {
                     2
                 } else {
                     1
                 };
                 let row_rect = Rect::new(sections_area.x, y, row_width, row_lines);
-                if let Some(workspace_id) = workspace_id {
-                    hits.section_rows
-                        .push((row_rect, workspace_id.to_string()));
+                if workspace_id.is_some() || pane_id.is_some() {
+                    hits.section_rows.push(SectionRowHit {
+                        rect: row_rect,
+                        workspace_id: workspace_id.map(str::to_string),
+                        pane_id: pane_id.map(str::to_string),
+                    });
                 }
                 // Mirror the Spaces rows: selection cursor first, then the focused workspace.
                 let selected = workspace_id.is_some_and(|workspace_id| {
@@ -547,7 +564,12 @@ pub(crate) fn render_sidebar(
                         .iter()
                         .any(|workspace| workspace.workspace_id == workspace_id && workspace.focused)
                 });
-                let active = selected || focused;
+                let pane_focused = pane_id.is_some_and(|pane_id| {
+                    snapshot.focused_pane_id.as_deref() == Some(pane_id)
+                });
+                // Green dot = the server's exact pane is open. Workspace-only rows fall
+                // back to the workspace focus.
+                let circle_active = pane_focused || (pane_id.is_none() && focused);
                 let background = if selected {
                     Some(palette.selection_bg)
                 } else if focused {
@@ -560,18 +582,24 @@ pub(crate) fn render_sidebar(
                 }
                 let circle_style = match background {
                     Some(background) => Style::default()
-                        .fg(if active { palette.green } else { palette.overlay0 })
+                        .fg(if circle_active {
+                            palette.green
+                        } else {
+                            palette.overlay0
+                        })
                         .bg(background),
-                    None => {
-                        Style::default().fg(if active { palette.green } else { palette.overlay0 })
-                    }
+                    None => Style::default().fg(if circle_active {
+                        palette.green
+                    } else {
+                        palette.overlay0
+                    }),
                 };
                 put_text(
                     buffer,
                     sections_area.x.saturating_add(1),
                     y,
                     1,
-                    if active { "●" } else { "○" },
+                    if circle_active { "●" } else { "○" },
                     circle_style,
                 );
                 let text_width = row_width.saturating_sub(3);

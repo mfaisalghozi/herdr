@@ -58,6 +58,7 @@ mod tests {
                 title: id.into(),
                 rows: rows.iter().map(|row| (*row).to_string()).collect(),
                 row_workspaces: vec![None; rows.len()],
+                row_panes: vec![None; rows.len()],
             }),
         }
     }
@@ -90,6 +91,7 @@ mod tests {
                 title: String::new(),
                 rows: Vec::new(),
                 row_workspaces: Vec::new(),
+                row_panes: Vec::new(),
             }),
         });
         assert!(empty.contains("invalid_section_id"), "{empty}");
@@ -101,6 +103,7 @@ mod tests {
                 title: "servers".into(),
                 rows: vec!["row".to_string(); MAX_SECTION_ROWS + 1],
                 row_workspaces: Vec::new(),
+                row_panes: Vec::new(),
             }),
         });
         assert!(many.contains("section_rows_limit"), "{many}");

@@ -15,4 +15,8 @@ pub struct SectionReportParams {
     /// focuses that workspace.
     #[serde(default)]
     pub row_workspaces: Vec<Option<String>>,
+    /// Optional pane id per row, parallel to `rows`. When set, clicking the
+    /// row focuses that pane (and its tab/workspace).
+    #[serde(default)]
+    pub row_panes: Vec<Option<String>>,
 }

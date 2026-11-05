@@ -271,6 +271,7 @@ pub(super) fn snapshot_with_completions(
                 title: section.title.clone(),
                 rows: section.rows.clone(),
                 row_workspaces: section.row_workspaces.clone(),
+                row_panes: section.row_panes.clone(),
             })
             .collect(),
         commands: app.client_shell_command_manifest(),

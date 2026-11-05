@@ -2088,22 +2088,23 @@ impl ClientShellState {
                     outcome.repaint = true;
                     return;
                 }
-                if let Some(workspace_id) = self
+                let section_target = self
                     .hits
                     .section_rows
                     .iter()
-                    .find(|(rect, _)| super::contains(*rect, point))
-                    .map(|(_, workspace_id)| workspace_id.clone())
-                {
-                    self.finish_endpoint_workspace_press(
-                        ClientWorkspacePress {
-                            endpoint_id: ClientEndpointId::Local,
-                            workspace_id,
-                            start_column: mouse.column,
-                            start_row: mouse.row,
-                        },
-                        outcome,
-                    );
+                    .find(|hit| super::contains(hit.rect, point))
+                    .and_then(|hit| {
+                        hit.pane_id
+                            .clone()
+                            .map(ClientEndpointFocusTarget::Pane)
+                            .or_else(|| {
+                                hit.workspace_id
+                                    .clone()
+                                    .map(ClientEndpointFocusTarget::Workspace)
+                            })
+                    });
+                if let Some(target) = section_target {
+                    self.focus_or_activate(ClientEndpointId::Local, target, outcome);
                     return;
                 }
                 let group_toggle = self.hits.workspaces.iter().find_map(|hit| {
