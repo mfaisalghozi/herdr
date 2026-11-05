@@ -584,10 +584,20 @@ pub(crate) fn render_sidebar(
                 });
                 let pane_focused = pane_id.is_some_and(|pane_id| {
                     snapshot.focused_pane_id.as_deref() == Some(pane_id)
+                }) || row_actions.get(index).is_some_and(|actions| {
+                    actions.iter().any(|action| {
+                        action.pane_id.as_deref().is_some_and(|pane_id| {
+                            snapshot.focused_pane_id.as_deref() == Some(pane_id)
+                        })
+                    })
                 });
-                // Green dot = the server's exact pane is open. Workspace-only rows fall
-                // back to the workspace focus.
-                let circle_active = pane_focused || (pane_id.is_none() && focused);
+                let has_action_panes = row_actions.get(index).is_some_and(|actions| {
+                    actions.iter().any(|action| action.pane_id.is_some())
+                });
+                // Green dot = the server's exact pane is open. Rows without pane
+                // details fall back to the workspace focus.
+                let circle_active =
+                    pane_focused || (pane_id.is_none() && !has_action_panes && focused);
                 let background = if selected {
                     Some(palette.selection_bg)
                 } else if focused {

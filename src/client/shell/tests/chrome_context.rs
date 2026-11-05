@@ -647,6 +647,75 @@ fn reported_section_row_dims_dot_for_unfocused_running_server() {
 }
 
 #[test]
+fn multi_pane_section_row_lights_dot_when_an_action_pane_is_focused() {
+    let mut snap = snapshot();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        rows: vec!["8080 8082  node".into()],
+        row_workspaces: vec![Some("ws_1".into())],
+        row_panes: vec![None],
+        row_actions: vec![vec![
+            crate::protocol::ClientShellSectionAction {
+                token: "8080".into(),
+                workspace_id: Some("ws_1".into()),
+                pane_id: Some("pane_1".into()),
+            },
+            crate::protocol::ClientShellSectionAction {
+                token: "8082".into(),
+                workspace_id: Some("ws_1".into()),
+                pane_id: Some("pane_2".into()),
+            },
+        ]],
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    let frame = state.compose(106, 30).expect("sidebar with multi-pane row");
+    let rect = state
+        .hits
+        .section_rows
+        .first()
+        .expect("section row hit")
+        .rect;
+    let buffer = frame.to_ratatui_buffer().expect("section frame");
+    assert!(!buffer[(rect.x + 1, rect.y)]
+        .modifier
+        .contains(Modifier::DIM));
+}
+
+#[test]
+fn multi_pane_section_row_dims_when_only_its_workspace_is_focused() {
+    let mut snap = snapshot();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        rows: vec!["8080 8082  node".into()],
+        row_workspaces: vec![Some("ws_1".into())],
+        row_panes: vec![None],
+        row_actions: vec![vec![crate::protocol::ClientShellSectionAction {
+            token: "8080".into(),
+            workspace_id: Some("ws_1".into()),
+            pane_id: Some("pane_2".into()),
+        }]],
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    let frame = state.compose(106, 30).expect("sidebar with multi-pane row");
+    let rect = state
+        .hits
+        .section_rows
+        .first()
+        .expect("section row hit")
+        .rect;
+    let buffer = frame.to_ratatui_buffer().expect("section frame");
+    assert!(buffer[(rect.x + 1, rect.y)]
+        .modifier
+        .contains(Modifier::DIM));
+}
+
+#[test]
 fn reported_section_row_uses_active_workspace_background() {
     let mut snap = snapshot();
     snap.sections = vec![crate::protocol::ClientShellSection {
