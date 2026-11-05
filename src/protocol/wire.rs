@@ -959,6 +959,9 @@ pub struct ClientShellSection {
     pub id: String,
     pub title: String,
     pub rows: Vec<String>,
+    /// Optional workspace id per row, parallel to `rows`.
+    #[serde(default)]
+    pub row_workspaces: Vec<Option<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

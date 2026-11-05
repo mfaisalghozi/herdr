@@ -206,6 +206,7 @@ pub(crate) fn render_sidebar(
 ) {
     let palette = &config.palette;
     render_sidebar_background(buffer, area, palette);
+    hits.section_rows.clear();
     hits.sidebar_divider = if area.is_empty() {
         Rect::default()
     } else {
@@ -214,20 +215,24 @@ pub(crate) fn render_sidebar(
     // Config-declared and externally reported sections share one reserved band at the bottom;
     // the spaces/agents split keeps the rest, so its geometry, divider, and hit-testing are
     // unchanged when no section is configured or reported.
-    let mut extra_sections: Vec<(&str, &[String])> = Vec::new();
+    let mut extra_sections: Vec<(&str, &[String], &[Option<String>])> = Vec::new();
     for section in &config.sections {
         if !section.rows.is_empty() {
-            extra_sections.push((section.title.as_str(), section.rows.as_slice()));
+            extra_sections.push((section.title.as_str(), section.rows.as_slice(), &[]));
         }
     }
     for section in &snapshot.sections {
         if !section.rows.is_empty() {
-            extra_sections.push((section.title.as_str(), section.rows.as_slice()));
+            extra_sections.push((
+                section.title.as_str(),
+                section.rows.as_slice(),
+                section.row_workspaces.as_slice(),
+            ));
         }
     }
     let sections_height = extra_sections
         .iter()
-        .map(|(_, rows)| 1u16.saturating_add(u16::try_from(rows.len()).unwrap_or(u16::MAX)))
+        .map(|(_, rows, _)| 1u16.saturating_add(u16::try_from(rows.len()).unwrap_or(u16::MAX)))
         .sum::<u16>();
     let (top_area, sections_area) = crate::ui::split_off_bottom(area, sections_height);
     let (workspace_area, detail_area) =
@@ -461,7 +466,7 @@ pub(crate) fn render_sidebar(
     if !sections_area.is_empty() {
         let row_width = sections_area.width.saturating_sub(1) as usize;
         let mut y = sections_area.y;
-        'sections: for (title, rows) in &extra_sections {
+        'sections: for (title, rows, row_workspaces) in &extra_sections {
             if y >= sections_area.bottom() {
                 break;
             }
@@ -476,9 +481,22 @@ pub(crate) fn render_sidebar(
                     .add_modifier(Modifier::BOLD),
             );
             y = y.saturating_add(1);
-            for row in rows.iter() {
+            for (index, row) in rows.iter().enumerate() {
                 if y >= sections_area.bottom() {
                     break 'sections;
+                }
+                if let Some(Some(workspace_id)) = row_workspaces.get(index) {
+                    if !workspace_id.is_empty() {
+                        hits.section_rows.push((
+                            Rect::new(
+                                sections_area.x,
+                                y,
+                                sections_area.width.saturating_sub(1),
+                                1,
+                            ),
+                            workspace_id.clone(),
+                        ));
+                    }
                 }
                 put_text(
                     buffer,

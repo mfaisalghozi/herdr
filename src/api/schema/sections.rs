@@ -11,4 +11,8 @@ pub struct SectionReportParams {
     /// Row lines rendered top to bottom.
     #[serde(default)]
     pub rows: Vec<String>,
+    /// Optional workspace id per row, parallel to `rows`. Clicking a row
+    /// focuses that workspace.
+    #[serde(default)]
+    pub row_workspaces: Vec<Option<String>>,
 }
