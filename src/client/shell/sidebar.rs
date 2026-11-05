@@ -507,185 +507,207 @@ pub(crate) fn render_sidebar(
         state.agent_scroll,
         hits,
     );
+    let sections_bottom = area.bottom().saturating_sub(1);
     let sections_area = Rect::new(
         detail_area.x,
         agent_area.bottom(),
         area.width,
-        sections_height.min(area.bottom().saturating_sub(agent_area.bottom())),
+        sections_height.min(sections_bottom.saturating_sub(agent_area.bottom())),
     );
 
     if !sections_area.is_empty() {
+        let mut row_heights = Vec::new();
+        for (_, rows, _, _, _) in &extra_sections {
+            row_heights.push(3u16);
+            for _ in 0..rows.len() {
+                row_heights.push(2u16);
+            }
+        }
+        let gaps = vec![0u16; row_heights.len()];
+        let metrics = super::scroll::list_scroll_metrics(
+            &row_heights,
+            &gaps,
+            sections_area.height,
+            *state.sections_scroll,
+        );
+        hits.sections_scroll_metrics = Some(metrics);
+        hits.sections_max_scroll = metrics.max_offset_from_bottom;
+        *state.sections_scroll = metrics
+            .max_offset_from_bottom
+            .saturating_sub(metrics.offset_from_bottom);
+        let start = *state.sections_scroll;
+        let show_scrollbar = metrics.max_offset_from_bottom > 0 && sections_area.width > 1;
         let row_width = sections_area.width.saturating_sub(1);
+        hits.sections_body = sections_area;
+        if show_scrollbar {
+            let track = Rect::new(
+                sections_area.right().saturating_sub(1),
+                sections_area.y,
+                1,
+                sections_area.height,
+            );
+            hits.sections_scrollbar = track;
+            super::scroll::render_list_scrollbar(buffer, track, metrics, palette);
+        }
         let mut y = sections_area.y;
+        let mut logical = 0usize;
         'sections: for (title, rows, row_workspaces, row_panes, row_actions) in &extra_sections {
-            if y >= sections_area.bottom() {
-                break;
+            if logical >= start {
+                if y.saturating_add(3) > sections_area.bottom() {
+                    break;
+                }
+                // Same divider treatment as the Agents header.
+                put_text(
+                    buffer,
+                    sections_area.x,
+                    y,
+                    sections_area.width.saturating_sub(1),
+                    &"─".repeat(sections_area.width.saturating_sub(1) as usize),
+                    Style::default().fg(palette.surface_dim),
+                );
+                put_text(
+                    buffer,
+                    sections_area.x,
+                    y.saturating_add(1),
+                    sections_area.width,
+                    &format!(" {title}"),
+                    Style::default()
+                        .fg(palette.overlay0)
+                        .add_modifier(Modifier::BOLD),
+                );
+                y = y.saturating_add(3);
             }
-            // Same divider treatment as the Agents header.
-            put_text(
-                buffer,
-                sections_area.x,
-                y,
-                sections_area.width.saturating_sub(1),
-                &"─".repeat(sections_area.width.saturating_sub(1) as usize),
-                Style::default().fg(palette.surface_dim),
-            );
-            y = y.saturating_add(1);
-            if y >= sections_area.bottom() {
-                break 'sections;
-            }
-            put_text(
-                buffer,
-                sections_area.x,
-                y,
-                sections_area.width,
-                &format!(" {title}"),
-                Style::default()
-                    .fg(palette.overlay0)
-                    .add_modifier(Modifier::BOLD),
-            );
-            y = y.saturating_add(1);
-            // Match the Spaces and Agents headers: one blank row between the
-            // section title and the first row.
-            if y >= sections_area.bottom() {
-                break 'sections;
-            }
-            y = y.saturating_add(1);
+            logical = logical.saturating_add(1);
             for (index, row) in rows.iter().enumerate() {
-                if y >= sections_area.bottom() {
-                    break 'sections;
-                }
-                let workspace_id = row_workspaces
-                    .get(index)
-                    .and_then(|workspace_id| workspace_id.as_deref())
-                    .filter(|workspace_id| !workspace_id.is_empty());
-                let pane_id = row_panes
-                    .get(index)
-                    .and_then(|pane_id| pane_id.as_deref())
-                    .filter(|pane_id| !pane_id.is_empty());
-                let row_lines = if y.saturating_add(1) < sections_area.bottom() {
-                    2
-                } else {
-                    1
-                };
-                let row_rect = Rect::new(sections_area.x, y, row_width, row_lines);
-                if workspace_id.is_some() || pane_id.is_some() {
-                    hits.section_rows.push(SectionRowHit {
-                        rect: row_rect,
-                        workspace_id: workspace_id.map(str::to_string),
-                        pane_id: pane_id.map(str::to_string),
-                    });
-                }
-                // Mirror the Spaces rows: selection cursor first, then the focused workspace.
-                let selected = workspace_id.is_some_and(|workspace_id| {
-                    state
-                        .selected_workspace_id
-                        .is_some_and(|target| target.matches(state.active_endpoint_id, workspace_id))
-                });
-                let focused = workspace_id.is_some_and(|workspace_id| {
-                    snapshot
-                        .workspaces
-                        .iter()
-                        .any(|workspace| workspace.workspace_id == workspace_id && workspace.focused)
-                });
-                let pane_focused = pane_id.is_some_and(|pane_id| {
-                    snapshot.focused_pane_id.as_deref() == Some(pane_id)
-                }) || row_actions.get(index).is_some_and(|actions| {
-                    actions.iter().any(|action| {
-                        action.pane_id.as_deref().is_some_and(|pane_id| {
-                            snapshot.focused_pane_id.as_deref() == Some(pane_id)
+                if logical >= start {
+                    if y.saturating_add(2) > sections_area.bottom() {
+                        break 'sections;
+                    }
+                    let workspace_id = row_workspaces
+                        .get(index)
+                        .and_then(|workspace_id| workspace_id.as_deref())
+                        .filter(|workspace_id| !workspace_id.is_empty());
+                    let pane_id = row_panes
+                        .get(index)
+                        .and_then(|pane_id| pane_id.as_deref())
+                        .filter(|pane_id| !pane_id.is_empty());
+                    let row_rect = Rect::new(sections_area.x, y, row_width, 2);
+                    if workspace_id.is_some() || pane_id.is_some() {
+                        hits.section_rows.push(SectionRowHit {
+                            rect: row_rect,
+                            workspace_id: workspace_id.map(str::to_string),
+                            pane_id: pane_id.map(str::to_string),
+                        });
+                    }
+                    // Mirror the Spaces rows: selection cursor first, then the focused workspace.
+                    let selected = workspace_id.is_some_and(|workspace_id| {
+                        state.selected_workspace_id.is_some_and(|target| {
+                            target.matches(state.active_endpoint_id, workspace_id)
                         })
-                    })
-                });
-                let has_action_panes = row_actions.get(index).is_some_and(|actions| {
-                    actions.iter().any(|action| action.pane_id.is_some())
-                });
-                // Green dot = the server's exact pane is open. Rows without pane
-                // details fall back to the workspace focus.
-                let circle_active =
-                    pane_focused || (pane_id.is_none() && !has_action_panes && focused);
-                let background = if selected {
-                    Some(palette.selection_bg)
-                } else if focused {
-                    Some(palette.active_row_bg)
-                } else {
-                    None
-                };
-                if let Some(background) = background {
-                    buffer.set_style(row_rect, Style::default().bg(background));
-                }
-                let circle_style = match background {
-                    Some(background) => Style::default()
-                        .fg(palette.green)
-                        .bg(background)
-                        .add_modifier(if circle_active {
-                            Modifier::empty()
-                        } else {
-                            Modifier::DIM
-                        }),
-                    None => Style::default()
-                        .fg(palette.green)
-                        .add_modifier(if circle_active {
-                            Modifier::empty()
-                        } else {
-                            Modifier::DIM
-                        }),
-                };
-                put_text(
-                    buffer,
-                    sections_area.x.saturating_add(1),
-                    y,
-                    1,
-                    "●",
-                    circle_style,
-                );
-                let text_width = row_width.saturating_sub(3);
-                let text_style = match background {
-                    Some(background) => Style::default().fg(palette.text).bg(background),
-                    None => Style::default().fg(palette.text),
-                };
-                put_text(
-                    buffer,
-                    sections_area.x.saturating_add(3),
-                    y,
-                    text_width,
-                    &crate::ui::truncate_end(row, text_width as usize),
-                    text_style,
-                );
-                if let Some(actions) = row_actions.get(index) {
-                    for action in actions {
-                        let Some(offset) = row_token_offset(row, &action.token) else {
-                            continue;
-                        };
-                        let token_x = display_width(&row[..offset]);
-                        let token_width = display_width(&action.token);
-                        if token_x.saturating_add(token_width) > text_width {
-                            continue;
-                        }
-                        let x = sections_area
-                            .x
-                            .saturating_add(3)
-                            .saturating_add(token_x);
-                        let action_style = match background {
-                            Some(background) => Style::default()
-                                .fg(palette.blue)
-                                .bg(background)
-                                .add_modifier(Modifier::UNDERLINED),
-                            None => Style::default()
-                                .fg(palette.blue)
-                                .add_modifier(Modifier::UNDERLINED),
-                        };
-                        put_text(buffer, x, y, token_width, &action.token, action_style);
-                        if action.workspace_id.is_some() || action.pane_id.is_some() {
-                            hits.section_row_actions.push(SectionRowActionHit {
-                                rect: Rect::new(x, y, token_width, 1),
-                                workspace_id: action.workspace_id.clone(),
-                                pane_id: action.pane_id.clone(),
-                            });
+                    });
+                    let focused = workspace_id.is_some_and(|workspace_id| {
+                        snapshot
+                            .workspaces
+                            .iter()
+                            .any(|workspace| workspace.workspace_id == workspace_id && workspace.focused)
+                    });
+                    let pane_focused = pane_id.is_some_and(|pane_id| {
+                        snapshot.focused_pane_id.as_deref() == Some(pane_id)
+                    }) || row_actions.get(index).is_some_and(|actions| {
+                        actions.iter().any(|action| {
+                            action.pane_id.as_deref().is_some_and(|pane_id| {
+                                snapshot.focused_pane_id.as_deref() == Some(pane_id)
+                            })
+                        })
+                    });
+                    let has_action_panes = row_actions.get(index).is_some_and(|actions| {
+                        actions.iter().any(|action| action.pane_id.is_some())
+                    });
+                    // Green dot = the server's exact pane is open. Rows without pane
+                    // details fall back to the workspace focus.
+                    let circle_active =
+                        pane_focused || (pane_id.is_none() && !has_action_panes && focused);
+                    let background = if selected {
+                        Some(palette.selection_bg)
+                    } else if focused {
+                        Some(palette.active_row_bg)
+                    } else {
+                        None
+                    };
+                    if let Some(background) = background {
+                        buffer.set_style(row_rect, Style::default().bg(background));
+                    }
+                    let circle_style = match background {
+                        Some(background) => Style::default()
+                            .fg(palette.green)
+                            .bg(background)
+                            .add_modifier(if circle_active {
+                                Modifier::empty()
+                            } else {
+                                Modifier::DIM
+                            }),
+                        None => Style::default()
+                            .fg(palette.green)
+                            .add_modifier(if circle_active {
+                                Modifier::empty()
+                            } else {
+                                Modifier::DIM
+                            }),
+                    };
+                    put_text(
+                        buffer,
+                        sections_area.x.saturating_add(1),
+                        y,
+                        1,
+                        "●",
+                        circle_style,
+                    );
+                    let text_width = row_width.saturating_sub(3);
+                    let text_style = match background {
+                        Some(background) => Style::default().fg(palette.text).bg(background),
+                        None => Style::default().fg(palette.text),
+                    };
+                    put_text(
+                        buffer,
+                        sections_area.x.saturating_add(3),
+                        y,
+                        text_width,
+                        &crate::ui::truncate_end(row, text_width as usize),
+                        text_style,
+                    );
+                    if let Some(actions) = row_actions.get(index) {
+                        for action in actions {
+                            let Some(offset) = row_token_offset(row, &action.token) else {
+                                continue;
+                            };
+                            let token_x = display_width(&row[..offset]);
+                            let token_width = display_width(&action.token);
+                            if token_x.saturating_add(token_width) > text_width {
+                                continue;
+                            }
+                            let x = sections_area
+                                .x
+                                .saturating_add(3)
+                                .saturating_add(token_x);
+                            let action_style = match background {
+                                Some(background) => Style::default()
+                                    .fg(palette.blue)
+                                    .bg(background)
+                                    .add_modifier(Modifier::UNDERLINED),
+                                None => Style::default()
+                                    .fg(palette.blue)
+                                    .add_modifier(Modifier::UNDERLINED),
+                            };
+                            put_text(buffer, x, y, token_width, &action.token, action_style);
+                            if action.workspace_id.is_some() || action.pane_id.is_some() {
+                                hits.section_row_actions.push(SectionRowActionHit {
+                                    rect: Rect::new(x, y, token_width, 1),
+                                    workspace_id: action.workspace_id.clone(),
+                                    pane_id: action.pane_id.clone(),
+                                });
+                            }
                         }
                     }
-                }
-                if row_lines > 1 {
                     let label = workspace_id
                         .and_then(|workspace_id| {
                             snapshot
@@ -696,9 +718,7 @@ pub(crate) fn render_sidebar(
                         .map(|workspace| workspace.label.as_str())
                         .unwrap_or("-");
                     let label_style = match background {
-                        Some(background) => {
-                            Style::default().fg(palette.overlay1).bg(background)
-                        }
+                        Some(background) => Style::default().fg(palette.overlay1).bg(background),
                         None => Style::default().fg(palette.overlay1),
                     };
                     put_text(
@@ -709,8 +729,9 @@ pub(crate) fn render_sidebar(
                         &crate::ui::truncate_end(label, text_width as usize),
                         label_style,
                     );
+                    y = y.saturating_add(2);
                 }
-                y = y.saturating_add(row_lines);
+                logical = logical.saturating_add(1);
             }
         }
     }

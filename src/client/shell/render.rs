@@ -238,6 +238,7 @@ pub(super) struct ShellRenderState<'a> {
     pub(super) remote_collapsed_groups: &'a HashMap<ClientEndpointId, HashSet<String>>,
     pub(super) workspace_scroll: &'a mut usize,
     pub(super) agent_scroll: &'a mut usize,
+    pub(super) sections_scroll: &'a mut usize,
     pub(super) tab_scroll: &'a mut usize,
     pub(super) reveal_focused_workspace: &'a mut bool,
     pub(super) reveal_focused_tab: &'a mut bool,
@@ -332,6 +333,10 @@ pub(super) fn render_shell(
         hits.workspaces.clear();
         hits.section_rows.clear();
         hits.section_row_actions.clear();
+        hits.sections_body = Rect::default();
+        hits.sections_scrollbar = Rect::default();
+        hits.sections_scroll_metrics = None;
+        hits.sections_max_scroll = 0;
         hits.agents.clear();
         hits.endpoint_agents.clear();
         hits.tab_scroll_left = Rect::default();

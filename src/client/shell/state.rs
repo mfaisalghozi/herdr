@@ -99,6 +99,11 @@ pub(super) struct ShellHitMap {
     pub(super) section_rows: Vec<SectionRowHit>,
     /// Clickable tokens inside reported sidebar section rows (e.g. one per port).
     pub(super) section_row_actions: Vec<SectionRowActionHit>,
+    /// Scrollable viewport for reported sidebar sections.
+    pub(super) sections_body: Rect,
+    pub(super) sections_scrollbar: Rect,
+    pub(super) sections_scroll_metrics: Option<crate::pane::ScrollMetrics>,
+    pub(super) sections_max_scroll: usize,
     pub(super) endpoint_agents: Vec<(Rect, ClientEndpointId, String)>,
     pub(super) agent_body: Rect,
     pub(super) agent_scrollbar: Rect,
@@ -198,6 +203,9 @@ pub(super) enum ClientChromeDrag {
         grab_row_offset: u16,
     },
     AgentScrollbar {
+        grab_row_offset: u16,
+    },
+    SectionsScrollbar {
         grab_row_offset: u16,
     },
     HelpScrollbar {
@@ -903,6 +911,7 @@ pub(crate) struct ClientShellState {
     pub(super) remote_collapsed_groups: HashMap<ClientEndpointId, HashSet<String>>,
     pub(super) workspace_scroll: usize,
     pub(super) agent_scroll: usize,
+    pub(super) sections_scroll: usize,
     pub(super) pending_agent_reveal: Option<(ClientEndpointId, String)>,
     pub(super) tab_scroll: usize,
     pub(super) mobile_switcher_scroll: usize,
@@ -1077,6 +1086,7 @@ impl ClientShellState {
             remote_collapsed_groups,
             workspace_scroll: 0,
             agent_scroll: 0,
+            sections_scroll: 0,
             pending_agent_reveal: None,
             tab_scroll: 0,
             mobile_switcher_scroll: 0,
@@ -1266,6 +1276,7 @@ impl ClientShellState {
         self.tab_press = None;
         self.workspace_scroll = 0;
         self.agent_scroll = 0;
+        self.sections_scroll = 0;
         self.tab_scroll = 0;
         self.mobile_switcher_scroll = 0;
         self.reveal_focused_workspace = true;

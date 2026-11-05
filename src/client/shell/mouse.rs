@@ -1062,6 +1062,22 @@ impl ClientShellState {
                     }
                     return;
                 }
+                Some(ClientChromeDrag::SectionsScrollbar { grab_row_offset }) => {
+                    if let Some(metrics) = self.hits.sections_scroll_metrics {
+                        let offset = crate::ui::scrollbar_offset_from_drag_row(
+                            metrics,
+                            self.hits.sections_scrollbar,
+                            mouse.row,
+                            *grab_row_offset,
+                        );
+                        let next = metrics.max_offset_from_bottom.saturating_sub(offset);
+                        if next != self.sections_scroll {
+                            self.sections_scroll = next;
+                            outcome.repaint = true;
+                        }
+                    }
+                    return;
+                }
                 Some(ClientChromeDrag::NavigatorScrollbar { grab_row_offset }) => {
                     if let Some(metrics) = self.hits.navigator_scroll_metrics {
                         let offset = crate::ui::scrollbar_offset_from_drag_row(
@@ -1362,6 +1378,7 @@ impl ClientShellState {
                     }
                     ClientChromeDrag::WorkspaceScrollbar { .. }
                     | ClientChromeDrag::AgentScrollbar { .. }
+                    | ClientChromeDrag::SectionsScrollbar { .. }
                     | ClientChromeDrag::HelpScrollbar { .. }
                     | ClientChromeDrag::NavigatorScrollbar { .. }
                     | ClientChromeDrag::ProductAnnouncementScrollbar { .. }
@@ -1929,6 +1946,23 @@ impl ClientShellState {
                     outcome.repaint = true;
                 }
             }
+            MouseEventKind::ScrollUp if super::contains(self.hits.sections_body, point) => {
+                let next = self.sections_scroll.saturating_sub(1);
+                if next != self.sections_scroll {
+                    self.sections_scroll = next;
+                    outcome.repaint = true;
+                }
+            }
+            MouseEventKind::ScrollDown if super::contains(self.hits.sections_body, point) => {
+                let next = self
+                    .sections_scroll
+                    .saturating_add(1)
+                    .min(self.hits.sections_max_scroll);
+                if next != self.sections_scroll {
+                    self.sections_scroll = next;
+                    outcome.repaint = true;
+                }
+            }
             MouseEventKind::Down(MouseButton::Left) => {
                 if self.selection.take().is_some() {
                     outcome.repaint = true;
@@ -2016,6 +2050,30 @@ impl ClientShellState {
                             let next = metrics.max_offset_from_bottom.saturating_sub(offset);
                             if next != self.agent_scroll {
                                 self.agent_scroll = next;
+                                outcome.repaint = true;
+                            }
+                        }
+                    }
+                    return;
+                }
+                if super::contains(self.hits.sections_scrollbar, point) {
+                    if let Some(metrics) = self.hits.sections_scroll_metrics {
+                        if let Some(grab_row_offset) = crate::ui::scrollbar_thumb_grab_offset(
+                            metrics,
+                            self.hits.sections_scrollbar,
+                            mouse.row,
+                        ) {
+                            self.chrome_drag =
+                                Some(ClientChromeDrag::SectionsScrollbar { grab_row_offset });
+                        } else {
+                            let offset = crate::ui::scrollbar_offset_from_row(
+                                metrics,
+                                self.hits.sections_scrollbar,
+                                mouse.row,
+                            );
+                            let next = metrics.max_offset_from_bottom.saturating_sub(offset);
+                            if next != self.sections_scroll {
+                                self.sections_scroll = next;
                                 outcome.repaint = true;
                             }
                         }

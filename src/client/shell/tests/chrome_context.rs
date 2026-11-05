@@ -716,6 +716,58 @@ fn multi_pane_section_row_dims_when_only_its_workspace_is_focused() {
 }
 
 #[test]
+fn scrolling_reported_sections_updates_the_visible_rows() {
+    let mut snap = snapshot();
+    let rows = (0..20).map(|index| format!("{index} node")).collect::<Vec<_>>();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        rows,
+        row_workspaces: vec![Some("ws_1".into()); 20],
+        row_panes: vec![Some("pane_1".into()); 20],
+        row_actions: Vec::new(),
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    state.compose(106, 40).expect("sidebar with many section rows");
+    let body = state.hits.sections_body;
+    assert!(!body.is_empty(), "sections body");
+    assert!(
+        state.hits.sections_max_scroll > 0,
+        "section list should scroll"
+    );
+    let first_before = state
+        .hits
+        .section_rows
+        .first()
+        .expect("section row")
+        .rect
+        .y;
+    let outcome =
+        state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: body.x + 1,
+            row: body.y,
+            modifiers: KeyModifiers::empty(),
+        })]);
+    assert!(outcome.repaint);
+    assert_eq!(state.sections_scroll, 1);
+    state.compose(106, 40).expect("sidebar after section scroll");
+    let first_after = state
+        .hits
+        .section_rows
+        .first()
+        .expect("section row after scroll")
+        .rect
+        .y;
+    assert!(
+        first_after < first_before,
+        "scrolling down should move rows up"
+    );
+}
+
+#[test]
 fn reported_section_row_uses_active_workspace_background() {
     let mut snap = snapshot();
     snap.sections = vec![crate::protocol::ClientShellSection {
