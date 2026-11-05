@@ -248,7 +248,7 @@ pub(crate) fn render_sidebar(
     let sections_height = extra_sections
         .iter()
         .map(|(_, rows, _, _, _)| {
-            2u16.saturating_add(
+            3u16.saturating_add(
                 u16::try_from(rows.len())
                     .unwrap_or(u16::MAX)
                     .saturating_mul(2),
@@ -544,6 +544,12 @@ pub(crate) fn render_sidebar(
                     .fg(palette.overlay0)
                     .add_modifier(Modifier::BOLD),
             );
+            y = y.saturating_add(1);
+            // Match the Spaces and Agents headers: one blank row between the
+            // section title and the first row.
+            if y >= sections_area.bottom() {
+                break 'sections;
+            }
             y = y.saturating_add(1);
             for (index, row) in rows.iter().enumerate() {
                 if y >= sections_area.bottom() {
