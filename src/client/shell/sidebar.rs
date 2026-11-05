@@ -243,7 +243,7 @@ pub(crate) fn render_sidebar(
     let sections_height = extra_sections
         .iter()
         .map(|(_, rows, _, _)| {
-            1u16.saturating_add(
+            2u16.saturating_add(
                 u16::try_from(rows.len())
                     .unwrap_or(u16::MAX)
                     .saturating_mul(2),
@@ -515,6 +515,19 @@ pub(crate) fn render_sidebar(
         'sections: for (title, rows, row_workspaces, row_panes) in &extra_sections {
             if y >= sections_area.bottom() {
                 break;
+            }
+            // Same divider treatment as the Agents header.
+            put_text(
+                buffer,
+                sections_area.x,
+                y,
+                sections_area.width.saturating_sub(1),
+                &"─".repeat(sections_area.width.saturating_sub(1) as usize),
+                Style::default().fg(palette.surface_dim),
+            );
+            y = y.saturating_add(1);
+            if y >= sections_area.bottom() {
+                break 'sections;
             }
             put_text(
                 buffer,
