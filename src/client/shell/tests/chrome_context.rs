@@ -534,7 +534,7 @@ fn clicking_a_reported_section_row_focuses_its_workspace() {
     snap.sections = vec![crate::protocol::ClientShellSection {
         id: "servers".into(),
         title: "servers".into(),
-        rows: vec!["8080  oma-app  node".into()],
+        rows: vec!["8080  node".into()],
         row_workspaces: vec![Some("ws_1".into())],
     }];
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
@@ -571,7 +571,7 @@ fn reported_section_row_uses_active_workspace_background() {
     snap.sections = vec![crate::protocol::ClientShellSection {
         id: "servers".into(),
         title: "servers".into(),
-        rows: vec!["8080  client-shell  node".into()],
+        rows: vec!["8080  node".into()],
         row_workspaces: vec![Some("ws_1".into())],
     }];
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
@@ -588,5 +588,9 @@ fn reported_section_row_uses_active_workspace_background() {
     assert_eq!(
         buffer[(rect.x, rect.y)].bg,
         state.config.palette.active_row_bg
+    );
+    assert_eq!(
+        buffer[(rect.x + 1, rect.y)].fg,
+        state.config.palette.green
     );
 }

@@ -232,7 +232,13 @@ pub(crate) fn render_sidebar(
     }
     let sections_height = extra_sections
         .iter()
-        .map(|(_, rows, _)| 1u16.saturating_add(u16::try_from(rows.len()).unwrap_or(u16::MAX)))
+        .map(|(_, rows, _)| {
+            1u16.saturating_add(
+                u16::try_from(rows.len())
+                    .unwrap_or(u16::MAX)
+                    .saturating_mul(2),
+            )
+        })
         .sum::<u16>();
     let sections_budget = sections_height.min(area.height.saturating_sub(6));
     // Keep the spaces/agents divider where it is, but let the agent panel own the
@@ -494,7 +500,7 @@ pub(crate) fn render_sidebar(
     );
 
     if !sections_area.is_empty() {
-        let row_width = sections_area.width.saturating_sub(1) as usize;
+        let row_width = sections_area.width.saturating_sub(1);
         let mut y = sections_area.y;
         'sections: for (title, rows, row_workspaces) in &extra_sections {
             if y >= sections_area.bottom() {
@@ -519,12 +525,12 @@ pub(crate) fn render_sidebar(
                     .get(index)
                     .and_then(|workspace_id| workspace_id.as_deref())
                     .filter(|workspace_id| !workspace_id.is_empty());
-                let row_rect = Rect::new(
-                    sections_area.x,
-                    y,
-                    sections_area.width.saturating_sub(1),
-                    1,
-                );
+                let row_lines = if y.saturating_add(1) < sections_area.bottom() {
+                    2
+                } else {
+                    1
+                };
+                let row_rect = Rect::new(sections_area.x, y, row_width, row_lines);
                 if let Some(workspace_id) = workspace_id {
                     hits.section_rows
                         .push((row_rect, workspace_id.to_string()));
@@ -541,6 +547,7 @@ pub(crate) fn render_sidebar(
                         .iter()
                         .any(|workspace| workspace.workspace_id == workspace_id && workspace.focused)
                 });
+                let active = selected || focused;
                 let background = if selected {
                     Some(palette.selection_bg)
                 } else if focused {
@@ -551,19 +558,61 @@ pub(crate) fn render_sidebar(
                 if let Some(background) = background {
                     buffer.set_style(row_rect, Style::default().bg(background));
                 }
-                let style = match background {
+                let circle_style = match background {
+                    Some(background) => Style::default()
+                        .fg(if active { palette.green } else { palette.overlay0 })
+                        .bg(background),
+                    None => {
+                        Style::default().fg(if active { palette.green } else { palette.overlay0 })
+                    }
+                };
+                put_text(
+                    buffer,
+                    sections_area.x.saturating_add(1),
+                    y,
+                    1,
+                    if active { "●" } else { "○" },
+                    circle_style,
+                );
+                let text_width = row_width.saturating_sub(3);
+                let text_style = match background {
                     Some(background) => Style::default().fg(palette.text).bg(background),
                     None => Style::default().fg(palette.text),
                 };
                 put_text(
                     buffer,
-                    sections_area.x,
+                    sections_area.x.saturating_add(3),
                     y,
-                    row_rect.width,
-                    &crate::ui::truncate_end(row, row_width),
-                    style,
+                    text_width,
+                    &crate::ui::truncate_end(row, text_width as usize),
+                    text_style,
                 );
-                y = y.saturating_add(1);
+                if row_lines > 1 {
+                    let label = workspace_id
+                        .and_then(|workspace_id| {
+                            snapshot
+                                .workspaces
+                                .iter()
+                                .find(|workspace| workspace.workspace_id == workspace_id)
+                        })
+                        .map(|workspace| workspace.label.as_str())
+                        .unwrap_or("-");
+                    let label_style = match background {
+                        Some(background) => {
+                            Style::default().fg(palette.overlay1).bg(background)
+                        }
+                        None => Style::default().fg(palette.overlay1),
+                    };
+                    put_text(
+                        buffer,
+                        sections_area.x.saturating_add(3),
+                        y.saturating_add(1),
+                        text_width,
+                        &crate::ui::truncate_end(label, text_width as usize),
+                        label_style,
+                    );
+                }
+                y = y.saturating_add(row_lines);
             }
         }
     }
