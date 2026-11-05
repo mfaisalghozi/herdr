@@ -527,3 +527,40 @@ fn close_confirmation_error_becomes_client_owned_overlay_and_stable_workspace_cl
             if params.workspace_id == "ws_1" && !params.close_group
     ));
 }
+
+#[test]
+fn clicking_a_reported_section_row_focuses_its_workspace() {
+    let mut snap = snapshot();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        rows: vec!["8080  oma-app  node".into()],
+        row_workspaces: vec![Some("ws_1".into())],
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    state.compose(106, 30).expect("sidebar with section rows");
+
+    let rect = state
+        .hits
+        .section_rows
+        .first()
+        .expect("section row hit")
+        .0;
+    let outcome =
+        state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: rect.x + 1,
+            row: rect.y,
+            modifiers: KeyModifiers::empty(),
+        })]);
+
+    let [ClientShellAction::Endpoint { request, .. }] = outcome.actions.as_slice() else {
+        panic!("section row click should focus the workspace");
+    };
+    assert!(matches!(
+        &request.method,
+        crate::api::schema::Method::WorkspaceFocus(target) if target.workspace_id == "ws_1"
+    ));
+}
