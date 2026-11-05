@@ -3863,6 +3863,39 @@
               "description": "Stable section identity; a later report with the same id replaces this one.",
               "type": "string"
             },
+            "row_actions": {
+              "default": [],
+              "description": "Optional per-token actions (e.g. one per visible port), parallel to `rows`.",
+              "items": {
+                "items": {
+                  "$ref": "#/schemas/request/$defs/SectionRowAction"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "row_panes": {
+              "default": [],
+              "description": "Optional pane id per row, parallel to `rows`. When set, clicking the\nrow focuses that pane (and its tab/workspace).",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": "array"
+            },
+            "row_workspaces": {
+              "default": [],
+              "description": "Optional workspace id per row, parallel to `rows`. Clicking a row\nfocuses that workspace.",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": "array"
+            },
             "rows": {
               "default": [],
               "description": "Row lines rendered top to bottom.",
@@ -3879,6 +3912,35 @@
           },
           "required": [
             "id"
+          ],
+          "type": "object"
+        },
+        "SectionRowAction": {
+          "description": "One clickable token within a section row, e.g. a port in `8080 8082 +3 node`.",
+          "properties": {
+            "pane_id": {
+              "default": null,
+              "description": "Pane to focus for this token.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "token": {
+              "description": "Text token to make clickable inside the row.",
+              "type": "string"
+            },
+            "workspace_id": {
+              "default": null,
+              "description": "Workspace to focus if no pane is set.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "token"
           ],
           "type": "object"
         },
