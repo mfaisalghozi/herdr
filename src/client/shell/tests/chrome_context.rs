@@ -585,7 +585,7 @@ fn clicking_a_section_row_port_token_focuses_that_pane() {
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
     state.set_snapshot(Box::new(snap));
     state.set_pane_surface(surface());
-    state.compose(106, 30).expect("sidebar with section row actions");
+    let frame = state.compose(106, 30).expect("sidebar with section row actions");
 
     let rect = state
         .hits
@@ -593,6 +593,11 @@ fn clicking_a_section_row_port_token_focuses_that_pane() {
         .first()
         .expect("section row action hit")
         .rect;
+    let buffer = frame.to_ratatui_buffer().expect("section action frame");
+    assert_eq!(buffer[(rect.x, rect.y)].fg, state.config.palette.blue);
+    assert!(buffer[(rect.x, rect.y)]
+        .modifier
+        .contains(Modifier::UNDERLINED));
     let outcome =
         state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
@@ -608,6 +613,37 @@ fn clicking_a_section_row_port_token_focuses_that_pane() {
         &request.method,
         crate::api::schema::Method::PaneFocus(target) if target.pane_id == "pane_2"
     ));
+}
+
+#[test]
+fn reported_section_row_dims_dot_for_unfocused_running_server() {
+    let mut snap = snapshot();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        rows: vec!["8080  node".into()],
+        row_workspaces: vec![Some("ws_1".into())],
+        row_panes: vec![Some("pane_2".into())],
+        row_actions: Vec::new(),
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    let frame = state.compose(106, 30).expect("sidebar with section rows");
+    let rect = state
+        .hits
+        .section_rows
+        .first()
+        .expect("section row hit")
+        .rect;
+    let buffer = frame.to_ratatui_buffer().expect("section frame");
+    assert_eq!(
+        buffer[(rect.x + 1, rect.y)].fg,
+        state.config.palette.green
+    );
+    assert!(buffer[(rect.x + 1, rect.y)]
+        .modifier
+        .contains(Modifier::DIM));
 }
 
 #[test]
