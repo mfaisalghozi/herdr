@@ -485,26 +485,53 @@ pub(crate) fn render_sidebar(
                 if y >= sections_area.bottom() {
                     break 'sections;
                 }
-                if let Some(Some(workspace_id)) = row_workspaces.get(index) {
-                    if !workspace_id.is_empty() {
-                        hits.section_rows.push((
-                            Rect::new(
-                                sections_area.x,
-                                y,
-                                sections_area.width.saturating_sub(1),
-                                1,
-                            ),
-                            workspace_id.clone(),
-                        ));
-                    }
+                let workspace_id = row_workspaces
+                    .get(index)
+                    .and_then(|workspace_id| workspace_id.as_deref())
+                    .filter(|workspace_id| !workspace_id.is_empty());
+                let row_rect = Rect::new(
+                    sections_area.x,
+                    y,
+                    sections_area.width.saturating_sub(1),
+                    1,
+                );
+                if let Some(workspace_id) = workspace_id {
+                    hits.section_rows
+                        .push((row_rect, workspace_id.to_string()));
                 }
+                // Mirror the Spaces rows: selection cursor first, then the focused workspace.
+                let selected = workspace_id.is_some_and(|workspace_id| {
+                    state
+                        .selected_workspace_id
+                        .is_some_and(|target| target.matches(state.active_endpoint_id, workspace_id))
+                });
+                let focused = workspace_id.is_some_and(|workspace_id| {
+                    snapshot
+                        .workspaces
+                        .iter()
+                        .any(|workspace| workspace.workspace_id == workspace_id && workspace.focused)
+                });
+                let background = if selected {
+                    Some(palette.selection_bg)
+                } else if focused {
+                    Some(palette.active_row_bg)
+                } else {
+                    None
+                };
+                if let Some(background) = background {
+                    buffer.set_style(row_rect, Style::default().bg(background));
+                }
+                let style = match background {
+                    Some(background) => Style::default().fg(palette.text).bg(background),
+                    None => Style::default().fg(palette.text),
+                };
                 put_text(
                     buffer,
                     sections_area.x,
                     y,
-                    sections_area.width,
+                    row_rect.width,
                     &crate::ui::truncate_end(row, row_width),
-                    Style::default().fg(palette.text),
+                    style,
                 );
                 y = y.saturating_add(1);
             }

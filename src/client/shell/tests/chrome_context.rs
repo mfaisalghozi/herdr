@@ -564,3 +564,29 @@ fn clicking_a_reported_section_row_focuses_its_workspace() {
         crate::api::schema::Method::WorkspaceFocus(target) if target.workspace_id == "ws_1"
     ));
 }
+
+#[test]
+fn reported_section_row_uses_active_workspace_background() {
+    let mut snap = snapshot();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        rows: vec!["8080  client-shell  node".into()],
+        row_workspaces: vec![Some("ws_1".into())],
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    let frame = state.compose(106, 30).expect("sidebar with section rows");
+    let rect = state
+        .hits
+        .section_rows
+        .first()
+        .expect("section row hit")
+        .0;
+    let buffer = frame.to_ratatui_buffer().expect("section frame");
+    assert_eq!(
+        buffer[(rect.x, rect.y)].bg,
+        state.config.palette.active_row_bg
+    );
+}
