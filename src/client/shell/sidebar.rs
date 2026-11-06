@@ -511,7 +511,7 @@ pub(crate) fn render_sidebar(
     let sections_area = Rect::new(
         detail_area.x,
         agent_area.bottom(),
-        area.width,
+        area.width.saturating_sub(1),
         sections_height.min(sections_bottom.saturating_sub(agent_area.bottom())),
     );
 
@@ -522,8 +522,8 @@ pub(crate) fn render_sidebar(
                 buffer,
                 sections_area.x,
                 sections_area.y,
-                sections_area.width.saturating_sub(1),
-                &"─".repeat(sections_area.width.saturating_sub(1) as usize),
+                sections_area.width,
+                &"─".repeat(sections_area.width as usize),
                 Style::default().fg(palette.surface_dim),
             );
             if sections_area.height > 1 {
@@ -568,7 +568,7 @@ pub(crate) fn render_sidebar(
             .saturating_sub(metrics.offset_from_bottom);
         let start = *state.sections_scroll;
         let show_scrollbar = metrics.max_offset_from_bottom > 0 && body.width > 1;
-        let row_width = body.width.saturating_sub(1);
+        let row_width = body.width.saturating_sub(u16::from(show_scrollbar));
         hits.sections_scrollbar = Rect::default();
         if show_scrollbar {
             let track = Rect::new(
@@ -595,8 +595,8 @@ pub(crate) fn render_sidebar(
                         buffer,
                         sections_area.x,
                         y,
-                        sections_area.width.saturating_sub(1),
-                        &"─".repeat(sections_area.width.saturating_sub(1) as usize),
+                        sections_area.width,
+                        &"─".repeat(sections_area.width as usize),
                         Style::default().fg(palette.surface_dim),
                     );
                     put_text(
