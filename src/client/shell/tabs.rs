@@ -25,7 +25,10 @@ pub(crate) fn render_tab_bar(
         .iter()
         .map(|tab| {
             let label = tab_label(tab);
-            display_width(&label).saturating_add(4).max(MIN_TAB_WIDTH)
+            display_width(&label)
+                .saturating_add(4)
+                .saturating_add(if config.mouse_capture { 2 } else { 0 })
+                .max(MIN_TAB_WIDTH)
         })
         .collect::<Vec<_>>();
     let content = tab_bar_content_area(snapshot, area);
@@ -114,7 +117,9 @@ pub(crate) fn render_tab_bar(
         } else {
             Style::default().fg(palette.overlay0).bg(palette.surface0)
         };
-        let padding = width.saturating_sub(display_width(&name));
+        let close_width = if mouse_chrome && width >= 3 { 2 } else { 0 };
+        let label_width = width.saturating_sub(close_width);
+        let padding = label_width.saturating_sub(display_width(&name));
         let left = padding / 2;
         let text = format!(
             "{empty:left$}{name}{empty:right_padding$}",
@@ -122,7 +127,19 @@ pub(crate) fn render_tab_bar(
             left = left as usize,
             right_padding = padding.saturating_sub(left) as usize,
         );
-        put_text(buffer, rect.x, rect.y, rect.width, &text, style);
+        put_text(buffer, rect.x, rect.y, label_width, &text, style);
+        if close_width > 0 {
+            let close = Rect::new(rect.x.saturating_add(label_width), rect.y, close_width, 1);
+            let close_style = if tab.focused {
+                Style::default()
+                    .fg(panel_contrast_fg(palette))
+                    .bg(palette.accent)
+            } else {
+                Style::default().fg(palette.overlay1).bg(palette.surface0)
+            };
+            put_text(buffer, close.x, close.y, close.width, " ×", close_style);
+            hits.tab_closes.push((close, tab.tab_id.clone()));
+        }
         hits.tabs.push((rect, tab.tab_id.clone()));
         first_visible.get_or_insert(index);
         last_visible = Some(index);

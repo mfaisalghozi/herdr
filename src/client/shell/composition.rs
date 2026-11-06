@@ -336,6 +336,7 @@ impl ClientShellState {
         };
         if mode_bar == Some(layout.tab_bar) {
             self.hits.tabs.clear();
+            self.hits.tab_closes.clear();
             self.hits.new_tab = Rect::default();
             self.hits.tab_scroll_left = Rect::default();
             self.hits.tab_scroll_right = Rect::default();

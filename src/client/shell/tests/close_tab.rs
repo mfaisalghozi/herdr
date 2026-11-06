@@ -185,6 +185,33 @@ fn last_tab_confirmation_rejects_missing_moved_or_reconnected_targets() {
 }
 
 #[test]
+fn tab_close_button_requests_that_tab_close() {
+    let mut state = close_state(false, 3);
+    let close = state
+        .hits
+        .tab_closes
+        .iter()
+        .find(|(_, tab_id)| tab_id == "tab_2")
+        .map(|(rect, _)| *rect)
+        .expect("tab 2 close button");
+    let frame = state.compose(106, 24).unwrap();
+    let text = frame_rows(&frame).join("\n");
+    assert!(text.contains('×'));
+
+    let requested = click(&mut state, close);
+    let methods = requested
+        .actions
+        .iter()
+        .filter_map(|action| match action {
+            ClientShellAction::Endpoint { request, .. } => Some(&request.method),
+            _ => None,
+        })
+        .filter(|method| !matches!(method, Method::TabFocus(_)))
+        .collect::<Vec<_>>();
+    assert!(matches!(methods.as_slice(), [Method::TabClose(target)] if target.tab_id == "tab_2"));
+}
+
+#[test]
 fn last_tab_close_preserves_parent_group_and_linked_workspace_scope() {
     for linked in [false, true] {
         let mut state = close_state(true, 1);
