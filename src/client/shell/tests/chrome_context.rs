@@ -730,20 +730,17 @@ fn scrolling_reported_sections_updates_the_visible_rows() {
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
     state.set_snapshot(Box::new(snap));
     state.set_pane_surface(surface());
-    state.compose(106, 40).expect("sidebar with many section rows");
+    let frame = state.compose(106, 40).expect("sidebar with many section rows");
+    let buffer = frame.to_ratatui_buffer().expect("section frame");
     let body = state.hits.sections_body;
     assert!(!body.is_empty(), "sections body");
     assert!(
         state.hits.sections_max_scroll > 0,
         "section list should scroll"
     );
-    let first_before = state
-        .hits
-        .section_rows
-        .first()
-        .expect("section row")
-        .rect
-        .y;
+    let before = (0..6u16)
+        .map(|index| buffer[(body.x + 3 + index, body.y)].symbol().to_string())
+        .collect::<String>();
     let outcome =
         state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
             kind: MouseEventKind::ScrollDown,
@@ -753,18 +750,14 @@ fn scrolling_reported_sections_updates_the_visible_rows() {
         })]);
     assert!(outcome.repaint);
     assert_eq!(state.sections_scroll, 1);
-    state.compose(106, 40).expect("sidebar after section scroll");
-    let first_after = state
-        .hits
-        .section_rows
-        .first()
-        .expect("section row after scroll")
-        .rect
-        .y;
-    assert!(
-        first_after < first_before,
-        "scrolling down should move rows up"
-    );
+    let frame = state.compose(106, 40).expect("sidebar after section scroll");
+    let buffer = frame.to_ratatui_buffer().expect("section frame after scroll");
+    let after = (0..6u16)
+        .map(|index| buffer[(body.x + 3 + index, body.y)].symbol().to_string())
+        .collect::<String>();
+    assert!(before.starts_with("0 "), "unexpected first row: {before:?}");
+    assert!(after.starts_with("1 "), "unexpected row after scroll: {after:?}");
+    assert_ne!(before, after, "scrolling down should change the visible row");
 }
 
 #[test]

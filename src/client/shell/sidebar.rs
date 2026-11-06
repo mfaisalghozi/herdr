@@ -516,9 +516,40 @@ pub(crate) fn render_sidebar(
     );
 
     if !sections_area.is_empty() {
+        // Keep the first section header fixed, like the Spaces and Agents headers.
+        if let Some((title, _, _, _, _)) = extra_sections.first() {
+            put_text(
+                buffer,
+                sections_area.x,
+                sections_area.y,
+                sections_area.width.saturating_sub(1),
+                &"─".repeat(sections_area.width.saturating_sub(1) as usize),
+                Style::default().fg(palette.surface_dim),
+            );
+            if sections_area.height > 1 {
+                put_text(
+                    buffer,
+                    sections_area.x,
+                    sections_area.y.saturating_add(1),
+                    sections_area.width,
+                    &format!(" {title}"),
+                    Style::default()
+                        .fg(palette.overlay0)
+                        .add_modifier(Modifier::BOLD),
+                );
+            }
+        }
+
+        let body_y = sections_area.y.saturating_add(3);
+        let body_height = sections_area.bottom().saturating_sub(body_y);
+        let body = Rect::new(sections_area.x, body_y, sections_area.width, body_height);
+        hits.sections_body = body;
+
         let mut row_heights = Vec::new();
-        for (_, rows, _, _, _) in &extra_sections {
-            row_heights.push(3u16);
+        for (index, (_, rows, _, _, _)) in extra_sections.iter().enumerate() {
+            if index > 0 {
+                row_heights.push(3u16);
+            }
             for _ in 0..rows.len() {
                 row_heights.push(2u16);
             }
@@ -527,7 +558,7 @@ pub(crate) fn render_sidebar(
         let metrics = super::scroll::list_scroll_metrics(
             &row_heights,
             &gaps,
-            sections_area.height,
+            body.height,
             *state.sections_scroll,
         );
         hits.sections_scroll_metrics = Some(metrics);
@@ -536,48 +567,52 @@ pub(crate) fn render_sidebar(
             .max_offset_from_bottom
             .saturating_sub(metrics.offset_from_bottom);
         let start = *state.sections_scroll;
-        let show_scrollbar = metrics.max_offset_from_bottom > 0 && sections_area.width > 1;
-        let row_width = sections_area.width.saturating_sub(1);
-        hits.sections_body = sections_area;
+        let show_scrollbar = metrics.max_offset_from_bottom > 0 && body.width > 1;
+        let row_width = body.width.saturating_sub(1);
+        hits.sections_scrollbar = Rect::default();
         if show_scrollbar {
             let track = Rect::new(
-                sections_area.right().saturating_sub(1),
-                sections_area.y,
+                body.right().saturating_sub(1),
+                body.y,
                 1,
-                sections_area.height,
+                body.height,
             );
             hits.sections_scrollbar = track;
             super::scroll::render_list_scrollbar(buffer, track, metrics, palette);
         }
-        let mut y = sections_area.y;
+
+        let mut y = body.y;
         let mut logical = 0usize;
-        'sections: for (title, rows, row_workspaces, row_panes, row_actions) in &extra_sections {
-            if logical >= start {
-                if y.saturating_add(3) > sections_area.bottom() {
-                    break;
+        'sections: for (section_index, (title, rows, row_workspaces, row_panes, row_actions)) in
+            extra_sections.iter().enumerate()
+        {
+            if section_index > 0 {
+                if logical >= start {
+                    if y.saturating_add(3) > sections_area.bottom() {
+                        break;
+                    }
+                    put_text(
+                        buffer,
+                        sections_area.x,
+                        y,
+                        sections_area.width.saturating_sub(1),
+                        &"─".repeat(sections_area.width.saturating_sub(1) as usize),
+                        Style::default().fg(palette.surface_dim),
+                    );
+                    put_text(
+                        buffer,
+                        sections_area.x,
+                        y.saturating_add(1),
+                        sections_area.width,
+                        &format!(" {title}"),
+                        Style::default()
+                            .fg(palette.overlay0)
+                            .add_modifier(Modifier::BOLD),
+                    );
+                    y = y.saturating_add(3);
                 }
-                // Same divider treatment as the Agents header.
-                put_text(
-                    buffer,
-                    sections_area.x,
-                    y,
-                    sections_area.width.saturating_sub(1),
-                    &"─".repeat(sections_area.width.saturating_sub(1) as usize),
-                    Style::default().fg(palette.surface_dim),
-                );
-                put_text(
-                    buffer,
-                    sections_area.x,
-                    y.saturating_add(1),
-                    sections_area.width,
-                    &format!(" {title}"),
-                    Style::default()
-                        .fg(palette.overlay0)
-                        .add_modifier(Modifier::BOLD),
-                );
-                y = y.saturating_add(3);
+                logical = logical.saturating_add(1);
             }
-            logical = logical.saturating_add(1);
             for (index, row) in rows.iter().enumerate() {
                 if logical >= start {
                     if y.saturating_add(2) > sections_area.bottom() {
@@ -591,7 +626,7 @@ pub(crate) fn render_sidebar(
                         .get(index)
                         .and_then(|pane_id| pane_id.as_deref())
                         .filter(|pane_id| !pane_id.is_empty());
-                    let row_rect = Rect::new(sections_area.x, y, row_width, 2);
+                    let row_rect = Rect::new(body.x, y, row_width, 2);
                     if workspace_id.is_some() || pane_id.is_some() {
                         hits.section_rows.push(SectionRowHit {
                             rect: row_rect,
@@ -606,10 +641,9 @@ pub(crate) fn render_sidebar(
                         })
                     });
                     let focused = workspace_id.is_some_and(|workspace_id| {
-                        snapshot
-                            .workspaces
-                            .iter()
-                            .any(|workspace| workspace.workspace_id == workspace_id && workspace.focused)
+                        snapshot.workspaces.iter().any(|workspace| {
+                            workspace.workspace_id == workspace_id && workspace.focused
+                        })
                     });
                     let pane_focused = pane_id.is_some_and(|pane_id| {
                         snapshot.focused_pane_id.as_deref() == Some(pane_id)
@@ -654,14 +688,7 @@ pub(crate) fn render_sidebar(
                                 Modifier::DIM
                             }),
                     };
-                    put_text(
-                        buffer,
-                        sections_area.x.saturating_add(1),
-                        y,
-                        1,
-                        "●",
-                        circle_style,
-                    );
+                    put_text(buffer, body.x.saturating_add(1), y, 1, "●", circle_style);
                     let text_width = row_width.saturating_sub(3);
                     let text_style = match background {
                         Some(background) => Style::default().fg(palette.text).bg(background),
@@ -669,7 +696,7 @@ pub(crate) fn render_sidebar(
                     };
                     put_text(
                         buffer,
-                        sections_area.x.saturating_add(3),
+                        body.x.saturating_add(3),
                         y,
                         text_width,
                         &crate::ui::truncate_end(row, text_width as usize),
@@ -685,10 +712,7 @@ pub(crate) fn render_sidebar(
                             if token_x.saturating_add(token_width) > text_width {
                                 continue;
                             }
-                            let x = sections_area
-                                .x
-                                .saturating_add(3)
-                                .saturating_add(token_x);
+                            let x = body.x.saturating_add(3).saturating_add(token_x);
                             let action_style = match background {
                                 Some(background) => Style::default()
                                     .fg(palette.blue)
@@ -723,7 +747,7 @@ pub(crate) fn render_sidebar(
                     };
                     put_text(
                         buffer,
-                        sections_area.x.saturating_add(3),
+                        body.x.saturating_add(3),
                         y.saturating_add(1),
                         text_width,
                         &crate::ui::truncate_end(label, text_width as usize),
