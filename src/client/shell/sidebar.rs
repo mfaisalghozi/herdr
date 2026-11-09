@@ -5,6 +5,8 @@ use ratatui::{
     widgets::{Paragraph, Widget},
 };
 
+const MAX_REPORTED_SECTIONS_HEIGHT: u16 = 14;
+
 fn workspace_selection_background(palette: &Palette) -> ratatui::style::Color {
     if palette.selection_bg == ratatui::style::Color::Reset {
         palette.active_row_bg
@@ -254,7 +256,8 @@ pub(crate) fn render_sidebar(
                     .saturating_mul(2),
             )
         })
-        .sum::<u16>();
+        .sum::<u16>()
+        .min(MAX_REPORTED_SECTIONS_HEIGHT);
     let sections_budget = sections_height.min(area.height.saturating_sub(6));
     // Keep the spaces/agents divider where it is, but let the agent panel own the
     // bottom band too. The servers section then starts right after the agent rows.
@@ -508,11 +511,14 @@ pub(crate) fn render_sidebar(
         hits,
     );
     let sections_bottom = area.bottom().saturating_sub(1);
+    let sections_top = sections_bottom
+        .saturating_sub(sections_height)
+        .max(agent_area.bottom());
     let sections_area = Rect::new(
         detail_area.x,
-        agent_area.bottom(),
+        sections_top,
         area.width.saturating_sub(1),
-        sections_height.min(sections_bottom.saturating_sub(agent_area.bottom())),
+        sections_bottom.saturating_sub(sections_top),
     );
 
     if !sections_area.is_empty() {

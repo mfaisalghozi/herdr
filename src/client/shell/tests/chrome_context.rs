@@ -568,6 +568,29 @@ fn clicking_a_reported_section_row_focuses_its_server_pane() {
 }
 
 #[test]
+fn reported_sections_height_is_capped() {
+    let mut snap = snapshot();
+    let rows = (0..20)
+        .map(|number| format!("{} node", 9000 + number))
+        .collect::<Vec<_>>();
+    snap.sections = vec![crate::protocol::ClientShellSection {
+        id: "servers".into(),
+        title: "servers".into(),
+        row_workspaces: vec![None; rows.len()],
+        row_panes: vec![None; rows.len()],
+        row_actions: Vec::new(),
+        rows,
+    }];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snap));
+    state.set_pane_surface(surface());
+    state.compose(106, 60).expect("capped section rows");
+
+    assert!(state.hits.sections_body.height <= 11);
+    assert!(state.hits.sections_max_scroll > 0);
+}
+
+#[test]
 fn clicking_a_section_row_port_token_focuses_that_pane() {
     let mut snap = snapshot();
     snap.sections = vec![crate::protocol::ClientShellSection {
