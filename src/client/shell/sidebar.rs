@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Paragraph, Widget},
 };
 
-const MAX_REPORTED_SECTIONS_HEIGHT: u16 = 14;
+const MAX_REPORTED_SECTIONS_HEIGHT: u16 = 20;
 
 fn workspace_selection_background(palette: &Palette) -> ratatui::style::Color {
     if palette.selection_bg == ratatui::style::Color::Reset {

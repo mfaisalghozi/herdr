@@ -586,7 +586,7 @@ fn reported_sections_height_is_capped() {
     state.set_pane_surface(surface());
     state.compose(106, 60).expect("capped section rows");
 
-    assert!(state.hits.sections_body.height <= 11);
+    assert!(state.hits.sections_body.height <= 17);
     assert!(state.hits.sections_max_scroll > 0);
 }
 
